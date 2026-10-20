@@ -1,0 +1,3 @@
+# Git hooks run under bash, so keep them with Unix line endings on Windows too
+.githooks/* text eol=lf
+*.sh text eol=lf

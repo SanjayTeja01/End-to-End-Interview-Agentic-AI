@@ -1,0 +1,110 @@
+# Infrastructure + application services for local/dev deployment.
+# Persistent data lives in NAMED VOLUMES — never in the repository.
+name: interview-agent
+
+x-backend-env: &backend-env
+  env_file: .env
+  environment:
+    HF_HOME: /models/hf   # faster-whisper model cache lives in the speech_models volume
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    ports: ["9000:9000", "9001:9001"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  chroma:
+    image: chromadb/chroma:latest
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data:/data
+    ports: ["8001:8000"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8000/api/v2/heartbeat || wget -qO- http://localhost:8000/api/v2/heartbeat || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    <<: *backend-env
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      chroma: { condition: service_started }
+    volumes:
+      - speech_models:/models
+      - ./scripts:/app/scripts:ro   # operational scripts (code only)
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  worker:
+    build: ./backend
+    <<: *backend-env
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=INFO", "-Q", "default,media,rag,reports", "--concurrency=4"]
+    depends_on:
+      backend: { condition: service_healthy }
+    volumes:
+      - speech_models:/models
+      - ./scripts:/app/scripts:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-/api}
+        NEXT_PUBLIC_WS_BASE: ${NEXT_PUBLIC_WS_BASE:-ws://localhost:8000}
+    environment:
+      BACKEND_INTERNAL_URL: http://backend:8000
+    ports: ["3000:3000"]
+    depends_on:
+      backend: { condition: service_healthy }
+
+volumes:
+  pg_data:
+  minio_data:
+  chroma_data:
+  speech_models:

@@ -1,0 +1,2 @@
+# Optional: only needed for LLM_PROVIDER=gemini or EMBEDDING_PROVIDER=gemini
+google-genai>=1.0

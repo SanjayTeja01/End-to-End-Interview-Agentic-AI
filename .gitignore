@@ -1,0 +1,104 @@
+# =====================================================================
+# SECRETS - never commit. Real values live only in .env on your machine;
+# the committed templates are .env.example / config/.env.example.
+# =====================================================================
+.env
+.env.*
+*.env
+!.env.example
+!config/.env.example
+env.before-*
+**/env.backup*
+secrets/
+.secrets/
+*.secret
+*.secrets
+credentials*.json
+*service-account*.json
+*-sa.json
+client_secret*.json
+token.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+id_rsa*
+id_ed25519*
+.npmrc
+.pypirc
+.netrc
+
+# Backups and archives (old copies of the project can contain .env)
+backup-*/
+*.tgz
+*.tar
+*.tar.gz
+*.zip
+*.7z
+*.rar
+*.bak
+*.bak-*
+*.orig
+.claude-tmp/
+
+# Logs and diagnostic dumps (can contain tokens, emails, transcripts)
+logs/
+*.log
+*-log.txt
+*-check.txt
+*-test.txt
+diag.sql
+*.dump
+*.sql.gz
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+*.egg-info/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+test-results/
+playwright-report/
+
+# Runtime data at the project root (user data, never commit). Anchored with a leading /
+# so source folders such as backend/app/models/ and frontend/.../reports/ are still committed.
+/data/
+/runtime/
+/uploads/
+/recordings/
+/reports/
+/generated/
+/tmp/
+/temp/
+/chroma_data/
+/minio_data/
+/pg_data/
+/models/
+/voices/
+*.onnx
+*.wav
+*.webm
+*.mp3
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
